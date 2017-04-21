@@ -38,6 +38,12 @@ double Vec2d_Length(Vec2d *vec)
 	return hypot(vec->x, vec->y);
 }
 
+void Vec2d_SetAngleAndLength(Vec2d *vec, double angle, double length)
+{
+	vec->x = length * cos(angle);
+	vec->y = length * sin(angle);
+}
+
 void Body_ApplyVelocity(Body *body)
 {
 	body->position.x += body->velocity.x;
@@ -50,19 +56,15 @@ void Body_ReflectWithinBounds(Body *body, double xmin, double ymin, double xmax,
 		double new_angle = M_PI - Vec2d_Angle(&body->velocity);
 		double length = Vec2d_Length(&body->velocity);
 
-		body->velocity.x = length * cos(new_angle);
-		body->velocity.y = length * sin(new_angle);
-
+		Vec2d_SetAngleAndLength(&body->velocity, new_angle, length);
 		body->position.x = xmin;
 	}
 
 	if (body->position.y < ymin) {
-		double new_angle = - Vec2d_Angle(&body->velocity);
+		double new_angle = -Vec2d_Angle(&body->velocity);
 		double length = Vec2d_Length(&body->velocity);
 
-		body->velocity.x = length * cos(new_angle);
-		body->velocity.y = length * sin(new_angle);
-
+		Vec2d_SetAngleAndLength(&body->velocity, new_angle, length);
 		body->position.y = ymin;
 	}
 
@@ -70,19 +72,15 @@ void Body_ReflectWithinBounds(Body *body, double xmin, double ymin, double xmax,
 		double new_angle = M_PI - Vec2d_Angle(&body->velocity);
 		double length = Vec2d_Length(&body->velocity);
 
-		body->velocity.x = length * cos(new_angle);
-		body->velocity.y = length * sin(new_angle);
-
+		Vec2d_SetAngleAndLength(&body->velocity, new_angle, length);
 		body->position.x = xmax;
 	}
 
 	if (body->position.y > ymax) {
-		double new_angle = - Vec2d_Angle(&body->velocity);
+		double new_angle = -Vec2d_Angle(&body->velocity);
 		double length = Vec2d_Length(&body->velocity);
 
-		body->velocity.x = length * cos(new_angle);
-		body->velocity.y = length * sin(new_angle);
-
+		Vec2d_SetAngleAndLength(&body->velocity, new_angle, length);
 		body->position.y = ymax;
 	}
 }
