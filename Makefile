@@ -1,5 +1,5 @@
 CC = clang
-LIBS = -lSDL2
+LIBS = -lSDL2 -lm
 CFLAGS = -Wall -std=c99
 LDFLAGS = $(LIB)
 TARGET = pong
