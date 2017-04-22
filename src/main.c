@@ -14,10 +14,9 @@
 #define WINDOW_FLAGS SDL_WINDOW_SHOWN
 #define RENDERER_FLAGS SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC
 
-#define WIDTH 640
-#define HEIGHT 480
+#define SCREEN_SIZE 800
 
-#define BODY_COUNT 10
+const double g_render_scale = SCREEN_SIZE / 4.0e11;
 
 TTF_Font *g_font = NULL;
 
@@ -39,6 +38,18 @@ typedef struct {
 	int height;
 } Label;
 
+Body g_solar_system[] = {
+	{
+		.position = { .x = 4.5356e8, .y = 6.9903e8 },
+		.velocity = { .x = -6.5789e0, .y = 1.1177e1 },
+		.mass = 1.9885e30
+	}, {
+		.position = { .x = -1.2732e11, .y = -7.9589e10 },
+		.velocity = { .x = 1.5212e4, .y = -2.5423e4 },
+		.mass = 5.9722e24
+	}
+};
+
 double Vec2d_Angle(Vec2d *vec)
 {
 	return atan2(vec->y, vec->x);
@@ -55,16 +66,16 @@ void Vec2d_SetAngleAndLength(Vec2d *vec, double angle, double length)
 	vec->y = length * sin(angle);
 }
 
-void Body_ApplyVelocity(Body *body)
+void Body_ApplyVelocity(Body *body, double delta_time)
 {
-	body->position.x += body->velocity.x;
-	body->position.y += body->velocity.y;
+	body->position.x += body->velocity.x * delta_time;
+	body->position.y += body->velocity.y * delta_time;
 }
 
-void Body_ApplyAcceleration(Body *body)
+void Body_ApplyAcceleration(Body *body, double delta_time)
 {
-	body->velocity.x += body->acceleration.x;
-	body->velocity.y += body->acceleration.y;
+	body->velocity.x += body->acceleration.x * delta_time;
+	body->velocity.y += body->acceleration.y * delta_time;
 }
 
 void Body_ApplyGravity(Body *a, Body *b)
@@ -132,8 +143,8 @@ double GaussianNoise(double mean, double stddev)
 
 void Body_Randomize(Body *body)
 {
-	body->position.x = GaussianNoise(WIDTH / 2.0, WIDTH / 6.0);
-	body->position.y = GaussianNoise(HEIGHT / 2.0, HEIGHT / 6.0);
+	body->position.x = GaussianNoise(SCREEN_SIZE / 2.0, SCREEN_SIZE / 6.0);
+	body->position.y = GaussianNoise(SCREEN_SIZE / 2.0, SCREEN_SIZE / 6.0);
 	body->velocity.x = GaussianNoise(0.0, 0.0);
 	body->velocity.y = GaussianNoise(0.0, 0.0);
 	body->acceleration.x = GaussianNoise(0.0, 0.0);
@@ -141,29 +152,31 @@ void Body_Randomize(Body *body)
 	body->mass = GaussianNoise(1.0e10, 1.0);
 }
 
+#define MTS(a) (g_render_scale * a + SCREEN_SIZE / 2)
+
 void RenderDebug(SDL_Renderer *renderer, size_t count, Body bodies[], Label labels[])
 {
 	SDL_SetRenderDrawColor(renderer, 0, 0xff, 0, 0xff);
 	for (int i = 0; i < count; i++) {
 		SDL_RenderDrawLine(renderer,
-				bodies[i].position.x,
-				bodies[i].position.y,
-				bodies[i].position.x + 500.0 * bodies[i].velocity.x,
-				bodies[i].position.y + 500.0 * bodies[i].velocity.y);
+				MTS(bodies[i].position.x),
+				MTS(bodies[i].position.y),
+				MTS(bodies[i].position.x + 1.0e-2 * bodies[i].velocity.x),
+				MTS(bodies[i].position.y + 1.0e-2 * bodies[i].velocity.y));
 	}
 
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0xff, 0xff);
 	for (int i = 0; i < count; i++) {
 		SDL_RenderDrawLine(renderer,
-				bodies[i].position.x,
-				bodies[i].position.y,
-				bodies[i].position.x + 2.0e6 * bodies[i].acceleration.x,
-				bodies[i].position.y + 2.0e6 * bodies[i].acceleration.y);
+				MTS(bodies[i].position.x),
+				MTS(bodies[i].position.y),
+				MTS(bodies[i].position.x + 1.0e4 * bodies[i].acceleration.x),
+				MTS(bodies[i].position.y + 1.0e4 * bodies[i].acceleration.y));
 	}
 
 	for (int i = 0; i < count; i++) {
-		SDL_Rect rect = { .x = bodies[i].position.x + 10,
-				  .y = bodies[i].position.y - 10,
+		SDL_Rect rect = { .x = MTS(bodies[i].position.x) + 10,
+				  .y = MTS(bodies[i].position.y) - 10,
 				  .w = labels[i].width,
 				  .h = labels[i].height };
 		SDL_RenderCopy(renderer, labels[i].texture, NULL, &rect);
@@ -175,14 +188,15 @@ int MainLoop(SDL_Renderer *renderer)
 	SDL_Event event;
 
 	bool exiting = false;
-	bool debug = false;
+	bool debug = true;
 
-	Body bodies[BODY_COUNT];
-	Label labels[BODY_COUNT];
-	
+	Body *bodies = g_solar_system;
+	size_t body_count = sizeof(g_solar_system) / sizeof(g_solar_system[0]);
+	Label labels[body_count];
+
 	SDL_Color text_color = {0, 0, 0};
 
-	for (int i = 0; i < BODY_COUNT; i++) {
+	for (int i = 0; i < body_count; i++) {
 		char buf[32] = "";
 
 		sprintf(buf, "%d", i);
@@ -198,9 +212,7 @@ int MainLoop(SDL_Renderer *renderer)
 		SDL_FreeSurface(surf);
 	}
 
-	for (int i = 0; i < BODY_COUNT; i++) {
-		Body_Randomize(bodies + i);
-	}
+	double delta_time = 1.0 / 60.0 * 60.0 * 60.0 * 24.0 * 7.0;
 
 	while (!exiting) {
 		while (SDL_PollEvent(&event)) {
@@ -216,18 +228,17 @@ int MainLoop(SDL_Renderer *renderer)
 			}
 		}
 
-		for(int i = 0; i < BODY_COUNT; i++) {
+		for(int i = 0; i < body_count; i++) {
 			bodies[i].acceleration.x = 0.0;
 			bodies[i].acceleration.y = 0.0;
 		}
 
-		for (int i = 0; i < BODY_COUNT; i++) {
-			for (int j = i + 1; j < BODY_COUNT; j++) {
+		for (int i = 0; i < body_count; i++) {
+			for (int j = i + 1; j < body_count; j++) {
 				Body_ApplyGravity(bodies + i, bodies + j);
 			}
-			Body_ApplyAcceleration(bodies + i);
-			Body_ApplyVelocity(bodies + i);
-			//Body_ReflectWithinBounds(bodies + i, 0, 0, WIDTH , HEIGHT);
+			Body_ApplyAcceleration(bodies + i, delta_time);
+			Body_ApplyVelocity(bodies + i, delta_time);
 		}
 
 		SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, 0xff);
@@ -235,16 +246,15 @@ int MainLoop(SDL_Renderer *renderer)
 
 		SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xff);
 
-		for (int i = 0; i < BODY_COUNT; i++) {
+		for (int i = 0; i < body_count; i++) {
 			SDL_Rect rect = { .x = 0, .y = 0, .w = 10, .h = 10 };
-
-			rect.x = bodies[i].position.x - rect.w / 2;
-			rect.y = bodies[i].position.y - rect.h / 2;
+			rect.x = MTS(bodies[i].position.x) - rect.w / 2;
+			rect.y = MTS(bodies[i].position.y) - rect.h / 2;
 			SDL_RenderDrawRect(renderer, &rect);
 		}
 
 		if (debug) {
-			RenderDebug(renderer, BODY_COUNT, bodies, labels);
+			RenderDebug(renderer, body_count, bodies, labels);
 		}
 
 		SDL_RenderPresent(renderer);
@@ -269,7 +279,7 @@ int main()
 		return 1;
 	}
 
-	SDL_Window *window = SDL_CreateWindow("Pong", 100, 100, WIDTH, HEIGHT, WINDOW_FLAGS);
+	SDL_Window *window = SDL_CreateWindow("Pong", 100, 100, SCREEN_SIZE, SCREEN_SIZE, WINDOW_FLAGS);
 	SDLPTR(window);
 
 	SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, RENDERER_FLAGS);
