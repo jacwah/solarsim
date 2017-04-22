@@ -141,12 +141,41 @@ void Body_Randomize(Body *body)
 	body->mass = GaussianNoise(1.0e10, 1.0);
 }
 
+void RenderDebug(SDL_Renderer *renderer, size_t count, Body bodies[], Label labels[])
+{
+	SDL_SetRenderDrawColor(renderer, 0, 0xff, 0, 0xff);
+	for (int i = 0; i < count; i++) {
+		SDL_RenderDrawLine(renderer,
+				bodies[i].position.x,
+				bodies[i].position.y,
+				bodies[i].position.x + 500.0 * bodies[i].velocity.x,
+				bodies[i].position.y + 500.0 * bodies[i].velocity.y);
+	}
+
+	SDL_SetRenderDrawColor(renderer, 0, 0, 0xff, 0xff);
+	for (int i = 0; i < count; i++) {
+		SDL_RenderDrawLine(renderer,
+				bodies[i].position.x,
+				bodies[i].position.y,
+				bodies[i].position.x + 2.0e6 * bodies[i].acceleration.x,
+				bodies[i].position.y + 2.0e6 * bodies[i].acceleration.y);
+	}
+
+	for (int i = 0; i < count; i++) {
+		SDL_Rect rect = { .x = bodies[i].position.x + 10,
+				  .y = bodies[i].position.y - 10,
+				  .w = labels[i].width,
+				  .h = labels[i].height };
+		SDL_RenderCopy(renderer, labels[i].texture, NULL, &rect);
+	}
+}
+
 int MainLoop(SDL_Renderer *renderer)
 {
 	SDL_Event event;
 
 	bool exiting = false;
-	unsigned ticks = 0;
+	bool debug = false;
 
 	Body bodies[BODY_COUNT];
 	Label labels[BODY_COUNT];
@@ -161,9 +190,11 @@ int MainLoop(SDL_Renderer *renderer)
 		SDLPTR(surf);
 		SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surf);
 		SDLPTR(texture);
+
 		labels[i].texture = texture;
 		labels[i].width = surf->w;
 		labels[i].height = surf->h;
+
 		SDL_FreeSurface(surf);
 	}
 
@@ -176,6 +207,11 @@ int MainLoop(SDL_Renderer *renderer)
 			switch (event.type) {
 			case SDL_QUIT:
 				exiting = true;
+				break;
+			case SDL_KEYUP:
+				if (event.key.keysym.sym == SDLK_d) {
+					debug = !debug;
+				}
 				break;
 			}
 		}
@@ -207,35 +243,11 @@ int MainLoop(SDL_Renderer *renderer)
 			SDL_RenderDrawRect(renderer, &rect);
 		}
 
-		SDL_SetRenderDrawColor(renderer, 0, 0xff, 0, 0xff);
-		for (int i = 0; i < BODY_COUNT; i++) {
-			SDL_RenderDrawLine(renderer,
-					bodies[i].position.x,
-					bodies[i].position.y,
-					bodies[i].position.x + 500.0 * bodies[i].velocity.x,
-					bodies[i].position.y + 500.0 * bodies[i].velocity.y);
-		}
-
-		SDL_SetRenderDrawColor(renderer, 0, 0, 0xff, 0xff);
-		for (int i = 0; i < BODY_COUNT; i++) {
-			SDL_RenderDrawLine(renderer,
-					bodies[i].position.x,
-					bodies[i].position.y,
-					bodies[i].position.x + 2.0e6 * bodies[i].acceleration.x,
-					bodies[i].position.y + 2.0e6 * bodies[i].acceleration.y);
-		}
-
-		for (int i = 0; i < BODY_COUNT; i++) {
-			SDL_Rect rect = { .x = bodies[i].position.x + 10,
-					  .y = bodies[i].position.y - 10,
-					  .w = labels[i].width,
-					  .h = labels[i].height };
-			SDL_RenderCopy(renderer, labels[i].texture, NULL, &rect);
+		if (debug) {
+			RenderDebug(renderer, BODY_COUNT, bodies, labels);
 		}
 
 		SDL_RenderPresent(renderer);
-
-		ticks += 1;
 	}
 
 	return 0;
