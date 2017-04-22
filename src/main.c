@@ -98,22 +98,6 @@ Body g_solar_system[] = {
 	}
 };
 
-double Vec2d_Angle(Vec2d *vec)
-{
-	return atan2(vec->y, vec->x);
-}
-
-double Vec2d_Length(Vec2d *vec)
-{
-	return hypot(vec->x, vec->y);
-}
-
-void Vec2d_SetAngleAndLength(Vec2d *vec, double angle, double length)
-{
-	vec->x = length * cos(angle);
-	vec->y = length * sin(angle);
-}
-
 void Body_ApplyVelocity(Body *body, double delta_time)
 {
 	body->position.x += body->velocity.x * delta_time;
@@ -141,66 +125,7 @@ void Body_ApplyGravity(Body *a, Body *b)
 	b->acceleration.y += sin(angle) * force / b->mass;
 }
 
-void Body_ReflectWithinBounds(Body *body, double xmin, double ymin, double xmax, double ymax)
-{
-	if (body->position.x < xmin) {
-		body->velocity.x *= -1;
-		body->position.x = xmin;
-	}
-
-	if (body->position.y < ymin) {
-		body->velocity.y *= -1;
-		body->position.y = ymin;
-	}
-
-	if (body->position.x > xmax) {
-		body->velocity.x *= -1;
-		body->position.x = xmax;
-	}
-
-	if (body->position.y > ymax) {
-		body->velocity.y *= -1;
-		body->position.y = ymax;
-	}
-}
-
-double GaussianNoise(double mean, double stddev)
-{
-	static double z0, z1;
-	static bool should_generate = false;
-
-	should_generate = !should_generate;
-
-	if (!should_generate) {
-		return z1 * stddev + mean;
-	}
-
-	double u1, u2;
-
-	// u1 has to be distinguishable from 0 for log(u1)
-	do {
-		u1 = rand() * (1.0 / RAND_MAX);
-		u2 = rand() * (1.0 / RAND_MAX);
-	} while (u1 <= DBL_EPSILON);
-
-	z0 = sqrt(-2.0 * log(u1)) * cos(2 * M_PI * u2);
-	z1 = sqrt(-2.0 * log(u1)) * sin(2 * M_PI * u2);
-
-	return z0 * stddev + mean;
-}
-
-void Body_Randomize(Body *body)
-{
-	body->position.x = GaussianNoise(SCREEN_SIZE / 2.0, SCREEN_SIZE / 6.0);
-	body->position.y = GaussianNoise(SCREEN_SIZE / 2.0, SCREEN_SIZE / 6.0);
-	body->velocity.x = GaussianNoise(0.0, 0.0);
-	body->velocity.y = GaussianNoise(0.0, 0.0);
-	body->acceleration.x = GaussianNoise(0.0, 0.0);
-	body->acceleration.y = GaussianNoise(0.0, 0.0);
-	body->mass = GaussianNoise(1.0e10, 1.0);
-}
-
-void RenderLabels(SDL_Renderer *renderer, Body bodies[], Label labels[], size_t count)
+static void RenderLabels(SDL_Renderer *renderer, Body bodies[], Label labels[], size_t count)
 {
 	for (int i = 0; i < count; i++) {
 		SDL_Rect rect = { .x = PX(bodies[i].position.x) + 10,
@@ -211,7 +136,7 @@ void RenderLabels(SDL_Renderer *renderer, Body bodies[], Label labels[], size_t 
 	}
 }
 
-void RenderDebug(SDL_Renderer *renderer, size_t count, Body bodies[])
+static void RenderDebug(SDL_Renderer *renderer, size_t count, Body bodies[])
 {
 	SDL_SetRenderDrawColor(renderer, COLOR_DEBUG_VELOCITY);
 	for (int i = 0; i < count; i++) {
@@ -232,35 +157,7 @@ void RenderDebug(SDL_Renderer *renderer, size_t count, Body bodies[])
 	}
 }
 
-void RenderCircle(SDL_Renderer *renderer, int x, int y, int radius)
-{
-	// Allocate more than 2πr^2 points to avoid inprecision causing
-	// buffer overflow.
-	size_t max_points = M_PI * radius * radius + radius;
-	size_t points_count = 0;
-	SDL_Point *points = malloc(sizeof(*points) * max_points);
-
-	// Don't draw 90° points, they look bad
-	for (int dy = -radius + 1; dy < radius; dy++) {
-		for (int dx = -radius + 1; dx < radius; dx++) {
-			if (hypot(dx, dy) <= radius) {
-				points[points_count].x = x + dx;
-				points[points_count].y = y + dy;
-				points_count++;
-
-				if (points_count == max_points) {
-					goto after_loop;
-				}
-			}
-		}
-	}
-
-after_loop:
-	SDL_RenderDrawPoints(renderer, points, points_count);
-	free(points);
-}
-
-void UpdateBodies(Body bodies[], size_t body_count, double delta_time)
+static void UpdateBodies(Body bodies[], size_t body_count, double delta_time)
 {
 	for(int i = 0; i < body_count; i++) {
 		bodies[i].acceleration.x = 0.0;
@@ -276,7 +173,7 @@ void UpdateBodies(Body bodies[], size_t body_count, double delta_time)
 	}
 }
 
-void PrerenderLabels(SDL_Renderer *renderer, Body bodies[], Label labels[], size_t body_count)
+static void PrerenderLabels(SDL_Renderer *renderer, Body bodies[], Label labels[], size_t body_count)
 {
 	SDL_Color text_color = {0, 0, 0};
 
@@ -297,7 +194,7 @@ void PrerenderLabels(SDL_Renderer *renderer, Body bodies[], Label labels[], size
 	}
 }
 
-void RenderBodies(SDL_Renderer *renderer, Body bodies[], size_t body_count)
+static void RenderBodies(SDL_Renderer *renderer, Body bodies[], size_t body_count)
 {
 	for (int i = 0; i < body_count; i++) {
 		SDL_Rect rect = {
@@ -311,7 +208,7 @@ void RenderBodies(SDL_Renderer *renderer, Body bodies[], size_t body_count)
 	}
 }
 
-int MainLoop(SDL_Renderer *renderer)
+static int MainLoop(SDL_Renderer *renderer)
 {
 	bool exiting = false;
 	bool debug = false;
