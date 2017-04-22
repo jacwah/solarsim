@@ -16,6 +16,9 @@
 
 #define SCREEN_SIZE 800
 
+#define PX(x) (g_render_scale * x + SCREEN_SIZE / 2)
+#define PY(y) (SCREEN_SIZE - (g_render_scale * y + SCREEN_SIZE / 2))
+
 const double g_render_scale = SCREEN_SIZE / 4.0e11;
 
 TTF_Font *g_font = NULL;
@@ -152,31 +155,29 @@ void Body_Randomize(Body *body)
 	body->mass = GaussianNoise(1.0e10, 1.0);
 }
 
-#define MTS(a) (g_render_scale * a + SCREEN_SIZE / 2)
-
 void RenderDebug(SDL_Renderer *renderer, size_t count, Body bodies[], Label labels[])
 {
 	SDL_SetRenderDrawColor(renderer, 0, 0xff, 0, 0xff);
 	for (int i = 0; i < count; i++) {
 		SDL_RenderDrawLine(renderer,
-				MTS(bodies[i].position.x),
-				MTS(bodies[i].position.y),
-				MTS(bodies[i].position.x + 1.0e-2 * bodies[i].velocity.x),
-				MTS(bodies[i].position.y + 1.0e-2 * bodies[i].velocity.y));
+				PX(bodies[i].position.x),
+				PY(bodies[i].position.y),
+				PX(bodies[i].position.x + 1.0e-2 * bodies[i].velocity.x),
+				PY(bodies[i].position.y + 1.0e-2 * bodies[i].velocity.y));
 	}
 
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0xff, 0xff);
 	for (int i = 0; i < count; i++) {
 		SDL_RenderDrawLine(renderer,
-				MTS(bodies[i].position.x),
-				MTS(bodies[i].position.y),
-				MTS(bodies[i].position.x + 1.0e4 * bodies[i].acceleration.x),
-				MTS(bodies[i].position.y + 1.0e4 * bodies[i].acceleration.y));
+				PX(bodies[i].position.x),
+				PY(bodies[i].position.y),
+				PX(bodies[i].position.x + 1.0e4 * bodies[i].acceleration.x),
+				PY(bodies[i].position.y + 1.0e4 * bodies[i].acceleration.y));
 	}
 
 	for (int i = 0; i < count; i++) {
-		SDL_Rect rect = { .x = MTS(bodies[i].position.x) + 10,
-				  .y = MTS(bodies[i].position.y) - 10,
+		SDL_Rect rect = { .x = PX(bodies[i].position.x) + 10,
+				  .y = PY(bodies[i].position.y) - 10,
 				  .w = labels[i].width,
 				  .h = labels[i].height };
 		SDL_RenderCopy(renderer, labels[i].texture, NULL, &rect);
@@ -212,6 +213,7 @@ int MainLoop(SDL_Renderer *renderer)
 		SDL_FreeSurface(surf);
 	}
 
+	// 1 week per second
 	double delta_time = 1.0 / 60.0 * 60.0 * 60.0 * 24.0 * 7.0;
 
 	while (!exiting) {
@@ -248,8 +250,8 @@ int MainLoop(SDL_Renderer *renderer)
 
 		for (int i = 0; i < body_count; i++) {
 			SDL_Rect rect = { .x = 0, .y = 0, .w = 10, .h = 10 };
-			rect.x = MTS(bodies[i].position.x) - rect.w / 2;
-			rect.y = MTS(bodies[i].position.y) - rect.h / 2;
+			rect.x = PX(bodies[i].position.x) - rect.w / 2;
+			rect.y = PY(bodies[i].position.y) - rect.h / 2;
 			SDL_RenderDrawRect(renderer, &rect);
 		}
 
