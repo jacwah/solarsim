@@ -16,6 +16,8 @@
 #define SCREEN_SIZE 800
 #define BODY_SIZE 4
 
+#define WINDOW_TITLE "Solar system simulation | Jacob Wahlgren 2017"
+
 //					R     G     B     A
 #define COLOR_BACKGROUND		0xff, 0xff, 0xff, 0xff
 #define COLOR_DEBUG_VELOCITY		0x00, 0xff, 0x00, 0xff
@@ -202,7 +204,7 @@ int main()
 		return 1;
 	}
 
-	SDL_Window *window = SDL_CreateWindow("Pong", 100, 100, SCREEN_SIZE, SCREEN_SIZE, WINDOW_FLAGS);
+	SDL_Window *window = SDL_CreateWindow(WINDOW_TITLE, 100, 100, SCREEN_SIZE, SCREEN_SIZE, WINDOW_FLAGS);
 	SDLPTR(window);
 
 	SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, RENDERER_FLAGS);

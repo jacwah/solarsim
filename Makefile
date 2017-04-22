@@ -2,7 +2,7 @@ CC = clang
 LIBS = -lSDL2 -lSDL2_ttf -lm
 CFLAGS = -Wall -std=c99
 LDFLAGS = $(LIB)
-TARGET = pong
+TARGET = solarsim
 
 SRCDIR = src
 BUILDDIR = build
