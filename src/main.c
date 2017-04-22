@@ -193,7 +193,18 @@ void Body_Randomize(Body *body)
 	body->mass = GaussianNoise(1.0e10, 1.0);
 }
 
-void RenderDebug(SDL_Renderer *renderer, size_t count, Body bodies[], Label labels[])
+void RenderLabels(SDL_Renderer *renderer, size_t count, Body bodies[], Label labels[])
+{
+	for (int i = 0; i < count; i++) {
+		SDL_Rect rect = { .x = PX(bodies[i].position.x) + 10,
+				  .y = PY(bodies[i].position.y) - 10,
+				  .w = labels[i].width,
+				  .h = labels[i].height };
+		SDL_RenderCopy(renderer, labels[i].texture, NULL, &rect);
+	}
+}
+
+void RenderDebug(SDL_Renderer *renderer, size_t count, Body bodies[])
 {
 	SDL_SetRenderDrawColor(renderer, 0, 0xff, 0, 0xff);
 	for (int i = 0; i < count; i++) {
@@ -211,14 +222,6 @@ void RenderDebug(SDL_Renderer *renderer, size_t count, Body bodies[], Label labe
 				PY(bodies[i].position.y),
 				PX(bodies[i].position.x + 1.0e4 * bodies[i].acceleration.x),
 				PY(bodies[i].position.y + 1.0e4 * bodies[i].acceleration.y));
-	}
-
-	for (int i = 0; i < count; i++) {
-		SDL_Rect rect = { .x = PX(bodies[i].position.x) + 10,
-				  .y = PY(bodies[i].position.y) - 10,
-				  .w = labels[i].width,
-				  .h = labels[i].height };
-		SDL_RenderCopy(renderer, labels[i].texture, NULL, &rect);
 	}
 }
 
@@ -238,7 +241,7 @@ int MainLoop(SDL_Renderer *renderer)
 	for (int i = 0; i < body_count; i++) {
 		char buf[32] = "";
 
-		sprintf(buf, "%s (%d)", bodies[i].name, i);
+		sprintf(buf, "%s", bodies[i].name);
 		SDL_Surface *surf = TTF_RenderUTF8_Blended(g_font, buf, text_color);
 		SDLPTR(surf);
 		SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surf);
@@ -251,8 +254,10 @@ int MainLoop(SDL_Renderer *renderer)
 		SDL_FreeSurface(surf);
 	}
 
+	// Assumes 60 Hz monitor
+	const double frame_length = 1.0 / 60.0;
 	// 10 weeks per second
-	double delta_time = 1.0 / 60.0 * 60.0 * 60.0 * 24.0 * 7.0 * 10.0;
+	double delta_time = frame_length * 60.0 * 60.0 * 24.0 * 7.0 * 10.0;
 	const double time_factor = 2.0;
 	const double scale_factor = 2.0;
 
@@ -310,8 +315,10 @@ int MainLoop(SDL_Renderer *renderer)
 		}
 
 		if (debug) {
-			RenderDebug(renderer, body_count, bodies, labels);
+			RenderDebug(renderer, body_count, bodies);
 		}
+
+		RenderLabels(renderer, body_count, bodies, labels);
 
 		SDL_RenderPresent(renderer);
 	}
