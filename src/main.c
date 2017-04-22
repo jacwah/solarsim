@@ -15,6 +15,13 @@
 #define RENDERER_FLAGS SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC
 
 #define SCREEN_SIZE 800
+#define BODY_SIZE 4
+
+//					R     G     B     A
+#define COLOR_BACKGROUND		0xff, 0xff, 0xff, 0xff
+#define COLOR_DEBUG_VELOCITY		0x00, 0xff, 0x00, 0xff
+#define COLOR_DEBUG_ACCELERATION	0xff, 0x00, 0x00, 0xff
+#define COLOR_BODY			0x00, 0x00, 0xff, 0xff
 
 #define PX(x) (g_render_scale * x + SCREEN_SIZE / 2)
 #define PY(y) (SCREEN_SIZE - (g_render_scale * y + SCREEN_SIZE / 2))
@@ -206,7 +213,7 @@ void RenderLabels(SDL_Renderer *renderer, size_t count, Body bodies[], Label lab
 
 void RenderDebug(SDL_Renderer *renderer, size_t count, Body bodies[])
 {
-	SDL_SetRenderDrawColor(renderer, 0, 0xff, 0, 0xff);
+	SDL_SetRenderDrawColor(renderer, COLOR_DEBUG_VELOCITY);
 	for (int i = 0; i < count; i++) {
 		SDL_RenderDrawLine(renderer,
 				PX(bodies[i].position.x),
@@ -215,7 +222,7 @@ void RenderDebug(SDL_Renderer *renderer, size_t count, Body bodies[])
 				PY(bodies[i].position.y + 1.0e-2 * bodies[i].velocity.y));
 	}
 
-	SDL_SetRenderDrawColor(renderer, 0, 0, 0xff, 0xff);
+	SDL_SetRenderDrawColor(renderer, COLOR_DEBUG_ACCELERATION);
 	for (int i = 0; i < count; i++) {
 		SDL_RenderDrawLine(renderer,
 				PX(bodies[i].position.x),
@@ -223,6 +230,34 @@ void RenderDebug(SDL_Renderer *renderer, size_t count, Body bodies[])
 				PX(bodies[i].position.x + 1.0e4 * bodies[i].acceleration.x),
 				PY(bodies[i].position.y + 1.0e4 * bodies[i].acceleration.y));
 	}
+}
+
+void RenderCircle(SDL_Renderer *renderer, int x, int y, int radius)
+{
+	// Allocate more than 2πr^2 points to avoid inprecision causing
+	// buffer overflow.
+	size_t max_points = M_PI * radius * radius + radius;
+	size_t points_count = 0;
+	SDL_Point *points = malloc(sizeof(*points) * max_points);
+
+	// Don't draw 90° points, they look bad
+	for (int dy = -radius + 1; dy < radius; dy++) {
+		for (int dx = -radius + 1; dx < radius; dx++) {
+			if (hypot(dx, dy) <= radius) {
+				points[points_count].x = x + dx;
+				points[points_count].y = y + dy;
+				points_count++;
+
+				if (points_count == max_points) {
+					goto after_loop;
+				}
+			}
+		}
+	}
+
+after_loop:
+	SDL_RenderDrawPoints(renderer, points, points_count);
+	free(points);
 }
 
 int MainLoop(SDL_Renderer *renderer)
@@ -302,16 +337,20 @@ int MainLoop(SDL_Renderer *renderer)
 			Body_ApplyVelocity(bodies + i, delta_time);
 		}
 
-		SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, 0xff);
+		SDL_SetRenderDrawColor(renderer, COLOR_BACKGROUND);
 		SDL_RenderClear(renderer);
 
-		SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xff);
+		SDL_SetRenderDrawColor(renderer, COLOR_BODY);
 
 		for (int i = 0; i < body_count; i++) {
-			SDL_Rect rect = { .x = 0, .y = 0, .w = 10, .h = 10 };
-			rect.x = PX(bodies[i].position.x) - rect.w / 2;
-			rect.y = PY(bodies[i].position.y) - rect.h / 2;
-			SDL_RenderDrawRect(renderer, &rect);
+			SDL_Rect rect = {
+				.x = PX(bodies[i].position.x) - BODY_SIZE / 2,
+				.y = PY(bodies[i].position.y) - BODY_SIZE / 2,
+				.w = BODY_SIZE,
+				.h = BODY_SIZE
+			};
+
+			SDL_RenderFillRect(renderer, &rect);
 		}
 
 		if (debug) {
