@@ -1,4 +1,5 @@
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <math.h>
@@ -16,7 +17,9 @@
 #define WIDTH 640
 #define HEIGHT 480
 
-#define BODY_COUNT 32
+#define BODY_COUNT 2
+
+TTF_Font *g_font = NULL;
 
 typedef struct {
 	double x;
@@ -26,7 +29,15 @@ typedef struct {
 typedef struct {
 	Vec2d position;
 	Vec2d velocity;
+	Vec2d acceleration;
+	double mass;
 } Body;
+
+typedef struct {
+	SDL_Texture *texture;
+	int width;
+	int height;
+} Label;
 
 double Vec2d_Angle(Vec2d *vec)
 {
@@ -48,6 +59,36 @@ void Body_ApplyVelocity(Body *body)
 {
 	body->position.x += body->velocity.x;
 	body->position.y += body->velocity.y;
+}
+
+void Body_ApplyAcceleration(Body *body)
+{
+	body->velocity.x += body->acceleration.x;
+	body->velocity.y += body->acceleration.y;
+}
+
+void Body_ApplyGravity(Body *a, Body *b)
+{
+	const double constant = 6.67e-11;
+	double xdelta = a->position.x - b->position.x;
+	double ydelta = a->position.y - b->position.y;
+	double dist_squared = xdelta * xdelta + ydelta * ydelta;
+	double force = constant * a->mass * b->mass / dist_squared;
+	double angle = atan2(ydelta, xdelta);
+	double angle_a, angle_b;
+
+	if (xdelta * ydelta >= 0) {
+		angle_b = angle;
+		angle_a = M_PI + angle;
+	} else {
+		angle_b = M_PI + angle;
+		angle_a = angle;
+	}
+
+	a->acceleration.x += cos(angle_a) * force / a->mass;
+	a->acceleration.y += sin(angle_a) * force / a->mass;
+	b->acceleration.x += cos(angle_b) * force / b->mass;
+	b->acceleration.y += sin(angle_b) * force / b->mass;
 }
 
 void Body_ReflectWithinBounds(Body *body, double xmin, double ymin, double xmax, double ymax)
@@ -100,22 +141,40 @@ double GaussianNoise(double mean, double stddev)
 
 void Body_Randomize(Body *body)
 {
-	body->position.x = GaussianNoise(WIDTH / 2.0, WIDTH / 12.0);
-	body->position.y = GaussianNoise(HEIGHT / 2.0, HEIGHT / 12.0);
-	body->velocity.x = GaussianNoise(0.0, 5.0);
-	body->velocity.y = GaussianNoise(0.0, 5.0);
+	body->position.x = GaussianNoise(WIDTH / 2.0, WIDTH / 6.0);
+	body->position.y = GaussianNoise(HEIGHT / 2.0, HEIGHT / 6.0);
+	body->velocity.x = GaussianNoise(0.0, 0.0);
+	body->velocity.y = GaussianNoise(0.0, 0.0);
+	body->acceleration.x = GaussianNoise(0.0, 0.0);
+	body->acceleration.y = GaussianNoise(0.0, 0.0);
+	body->mass = GaussianNoise(1.0e10, 1.0);
 }
 
 int MainLoop(SDL_Renderer *renderer)
 {
 	SDL_Event event;
 
-	memset(&event, 0, sizeof(event));
-
 	bool exiting = false;
 	unsigned ticks = 0;
 
 	Body bodies[BODY_COUNT];
+	Label labels[BODY_COUNT];
+	
+	SDL_Color text_color = {0, 0, 0};
+
+	for (int i = 0; i < BODY_COUNT; i++) {
+		char buf[32] = "";
+
+		sprintf(buf, "%d", i);
+		SDL_Surface *surf = TTF_RenderUTF8_Blended(g_font, buf, text_color);
+		SDLPTR(surf);
+		SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surf);
+		SDLPTR(texture);
+		labels[i].texture = texture;
+		labels[i].width = surf->w;
+		labels[i].height = surf->h;
+		SDL_FreeSurface(surf);
+	}
 
 	for (int i = 0; i < BODY_COUNT; i++) {
 		Body_Randomize(bodies + i);
@@ -130,9 +189,18 @@ int MainLoop(SDL_Renderer *renderer)
 			}
 		}
 
+		for(int i = 0; i < BODY_COUNT; i++) {
+			bodies[i].acceleration.x = 0.0;
+			bodies[i].acceleration.y = 0.0;
+		}
+
 		for (int i = 0; i < BODY_COUNT; i++) {
+			for (int j = i + 1; j < BODY_COUNT; j++) {
+				Body_ApplyGravity(bodies + i, bodies + j);
+			}
+			Body_ApplyAcceleration(bodies + i);
 			Body_ApplyVelocity(bodies + i);
-			Body_ReflectWithinBounds(bodies + i, 0, 0, WIDTH , HEIGHT);
+			//Body_ReflectWithinBounds(bodies + i, 0, 0, WIDTH , HEIGHT);
 		}
 
 		SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, 0xff);
@@ -148,6 +216,32 @@ int MainLoop(SDL_Renderer *renderer)
 			SDL_RenderDrawRect(renderer, &rect);
 		}
 
+		SDL_SetRenderDrawColor(renderer, 0, 0xff, 0, 0xff);
+		for (int i = 0; i < BODY_COUNT; i++) {
+			SDL_RenderDrawLine(renderer,
+					bodies[i].position.x,
+					bodies[i].position.y,
+					bodies[i].position.x + 500.0 * bodies[i].velocity.x,
+					bodies[i].position.y + 500.0 * bodies[i].velocity.y);
+		}
+
+		SDL_SetRenderDrawColor(renderer, 0, 0, 0xff, 0xff);
+		for (int i = 0; i < BODY_COUNT; i++) {
+			SDL_RenderDrawLine(renderer,
+					bodies[i].position.x,
+					bodies[i].position.y,
+					bodies[i].position.x + 2.0e6 * bodies[i].acceleration.x,
+					bodies[i].position.y + 2.0e6 * bodies[i].acceleration.y);
+		}
+
+		for (int i = 0; i < BODY_COUNT; i++) {
+			SDL_Rect rect = { .x = bodies[i].position.x + 10,
+					  .y = bodies[i].position.y - 10,
+					  .w = labels[i].width,
+					  .h = labels[i].height };
+			SDL_RenderCopy(renderer, labels[i].texture, NULL, &rect);
+		}
+
 		SDL_RenderPresent(renderer);
 
 		ticks += 1;
@@ -159,6 +253,18 @@ int MainLoop(SDL_Renderer *renderer)
 int main()
 {
 	SDLRET(SDL_Init(SDL_INIT_VIDEO));
+
+	if (0 != TTF_Init()) {
+		fprintf(stderr, "ttf error: %s\n", TTF_GetError());
+		return 1;
+	}
+
+	g_font = TTF_OpenFont("/Library/Fonts/Arial.ttf", 12);
+
+	if (!g_font) {
+		fprintf(stderr, "ttf error: %s\n", TTF_GetError());
+		return 1;
+	}
 
 	SDL_Window *window = SDL_CreateWindow("Pong", 100, 100, WIDTH, HEIGHT, WINDOW_FLAGS);
 	SDLPTR(window);
@@ -173,5 +279,7 @@ int main()
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
 
+	TTF_CloseFont(g_font);
+	TTF_Quit();
 	SDL_Quit();
 }
