@@ -19,7 +19,7 @@
 #define PX(x) (g_render_scale * x + SCREEN_SIZE / 2)
 #define PY(y) (SCREEN_SIZE - (g_render_scale * y + SCREEN_SIZE / 2))
 
-const double g_render_scale = SCREEN_SIZE / 1.0e13;
+double g_render_scale = SCREEN_SIZE / 1.0e13;
 
 TTF_Font *g_font = NULL;
 
@@ -253,6 +253,8 @@ int MainLoop(SDL_Renderer *renderer)
 
 	// 10 weeks per second
 	double delta_time = 1.0 / 60.0 * 60.0 * 60.0 * 24.0 * 7.0 * 10.0;
+	const double time_factor = 2.0;
+	const double scale_factor = 2.0;
 
 	while (!exiting) {
 		while (SDL_PollEvent(&event)) {
@@ -261,8 +263,22 @@ int MainLoop(SDL_Renderer *renderer)
 				exiting = true;
 				break;
 			case SDL_KEYUP:
-				if (event.key.keysym.sym == SDLK_d) {
+				switch (event.key.keysym.sym) {
+				case SDLK_d:
 					debug = !debug;
+					break;
+				case SDLK_UP:
+					delta_time *= time_factor;
+					break;
+				case SDLK_DOWN:
+					delta_time /= time_factor;
+					break;
+				case SDLK_PLUS:
+					g_render_scale *= scale_factor;
+					break;
+				case SDLK_MINUS:
+					g_render_scale /= scale_factor;
+					break;
 				}
 				break;
 			}
