@@ -53,34 +53,22 @@ void Body_ApplyVelocity(Body *body)
 void Body_ReflectWithinBounds(Body *body, double xmin, double ymin, double xmax, double ymax)
 {
 	if (body->position.x < xmin) {
-		double new_angle = M_PI - Vec2d_Angle(&body->velocity);
-		double length = Vec2d_Length(&body->velocity);
-
-		Vec2d_SetAngleAndLength(&body->velocity, new_angle, length);
+		body->velocity.x *= -1;
 		body->position.x = xmin;
 	}
 
 	if (body->position.y < ymin) {
-		double new_angle = -Vec2d_Angle(&body->velocity);
-		double length = Vec2d_Length(&body->velocity);
-
-		Vec2d_SetAngleAndLength(&body->velocity, new_angle, length);
+		body->velocity.y *= -1;
 		body->position.y = ymin;
 	}
 
 	if (body->position.x > xmax) {
-		double new_angle = M_PI - Vec2d_Angle(&body->velocity);
-		double length = Vec2d_Length(&body->velocity);
-
-		Vec2d_SetAngleAndLength(&body->velocity, new_angle, length);
+		body->velocity.x *= -1;
 		body->position.x = xmax;
 	}
 
 	if (body->position.y > ymax) {
-		double new_angle = -Vec2d_Angle(&body->velocity);
-		double length = Vec2d_Length(&body->velocity);
-
-		Vec2d_SetAngleAndLength(&body->velocity, new_angle, length);
+		body->velocity.y *= -1;
 		body->position.y = ymax;
 	}
 }
