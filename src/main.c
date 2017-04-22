@@ -17,7 +17,7 @@
 #define WIDTH 640
 #define HEIGHT 480
 
-#define BODY_COUNT 2
+#define BODY_COUNT 10
 
 TTF_Font *g_font = NULL;
 
@@ -75,20 +75,11 @@ void Body_ApplyGravity(Body *a, Body *b)
 	double dist_squared = xdelta * xdelta + ydelta * ydelta;
 	double force = constant * a->mass * b->mass / dist_squared;
 	double angle = atan2(ydelta, xdelta);
-	double angle_a, angle_b;
 
-	if (xdelta * ydelta >= 0) {
-		angle_b = angle;
-		angle_a = M_PI + angle;
-	} else {
-		angle_b = M_PI + angle;
-		angle_a = angle;
-	}
-
-	a->acceleration.x += cos(angle_a) * force / a->mass;
-	a->acceleration.y += sin(angle_a) * force / a->mass;
-	b->acceleration.x += cos(angle_b) * force / b->mass;
-	b->acceleration.y += sin(angle_b) * force / b->mass;
+	a->acceleration.x += cos(angle + M_PI) * force / a->mass;
+	a->acceleration.y += sin(angle + M_PI) * force / a->mass;
+	b->acceleration.x += cos(angle) * force / b->mass;
+	b->acceleration.y += sin(angle) * force / b->mass;
 }
 
 void Body_ReflectWithinBounds(Body *body, double xmin, double ymin, double xmax, double ymax)
