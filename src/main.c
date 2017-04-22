@@ -2,10 +2,9 @@
 #include <SDL2/SDL_ttf.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <math.h>
 #include <stdlib.h>
-#include <time.h>
-#include <float.h>
+#include "body.h"
+#include "solar_system_data.h"
 
 #define _SDLERR() do { fprintf(stderr, "error: %s\n", SDL_GetError()); exit(1); }  while (0)
 #define SDLRET(ret_code) do { if (ret_code != 0) { _SDLERR(); } } while (0)
@@ -31,99 +30,10 @@ double g_render_scale = SCREEN_SIZE / 1.0e13;
 TTF_Font *g_font = NULL;
 
 typedef struct {
-	double x;
-	double y;
-} Vec2d;
-
-typedef struct {
-	Vec2d position;
-	Vec2d velocity;
-	Vec2d acceleration;
-	double mass;
-	char *name;
-} Body;
-
-typedef struct {
 	SDL_Texture *texture;
 	int width;
 	int height;
 } Label;
-
-Body g_solar_system[] = {
-	{
-		.position = { .x = 4.5356e8, .y = 6.9903e8 },
-		.velocity = { .x = -6.5789e0, .y = 1.1177e1 },
-		.mass = 1.9885e30,
-		.name = "Sol"
-	}, {
-		.position = { .x = -5.2726e10, .y = -3.7468e10 },
-		.velocity = { .x = 1.8415e4, .y = -3.7402e4 },
-		.mass = 3.302e23,
-		.name = "Mercurius"
-	}, {
-		.position = { .x = -7.0490e10, .y = -8.1077e10 },
-		.velocity = { .x = 2.6200e4, .y = -2.3102e4 },
-		.mass = 48.685e23,
-		.name = "Venus"
-	}, {
-		.position = { .x = -1.2732e11, .y = -7.9589e10 },
-		.velocity = { .x = 1.5212e4, .y = -2.5423e4 },
-		.mass = 5.9722e24,
-		.name = "Tellus"
-	}, {
-		.position = { .x = 4.7562e10, .y = 2.2625e11 },
-		.velocity = { .x = -2.2806e4, .y = 7.0263e3 },
-		.mass = 6.4185e23,
-		.name = "Mars"
-	}, {
-		.position = { .x = -7.7066e11, .y = -2.6598e11 },
-		.velocity = { .x = 4.1098e3, -1.1732e4 },
-		.mass = 1898.13e24,
-		.name = "Jupiter"
-	}, {
-		.position = { .x = -1.9262e11, .y = -1.4907e12 },
-		.velocity = { .x = 9.0486e3, .y = -1.2687e3 },
-		.mass = 5.6832e26,
-		.name = "Saturnus"
-	}, {
-		.position = { .x = 2.7173e12, .y = 1.2281e12 },
-		.velocity = { .x = -2.8545e3, .y = 5.8881e3 },
-		.mass = 86.8103e24,
-		.name = "Uranus"
-	}, {
-		.position = { .x = 4.2558e12, .y = -1.3998e12 },
-		.velocity = { .x = 1.6627e3, .y = 5.1961e3 },
-		.mass = 102.41e24,
-		.name = "Neptunus"
-	}
-};
-
-void Body_ApplyVelocity(Body *body, double delta_time)
-{
-	body->position.x += body->velocity.x * delta_time;
-	body->position.y += body->velocity.y * delta_time;
-}
-
-void Body_ApplyAcceleration(Body *body, double delta_time)
-{
-	body->velocity.x += body->acceleration.x * delta_time;
-	body->velocity.y += body->acceleration.y * delta_time;
-}
-
-void Body_ApplyGravity(Body *a, Body *b)
-{
-	const double constant = 6.67e-11;
-	double xdelta = a->position.x - b->position.x;
-	double ydelta = a->position.y - b->position.y;
-	double dist_squared = xdelta * xdelta + ydelta * ydelta;
-	double force = constant * a->mass * b->mass / dist_squared;
-	double angle = atan2(ydelta, xdelta);
-
-	a->acceleration.x += cos(angle + M_PI) * force / a->mass;
-	a->acceleration.y += sin(angle + M_PI) * force / a->mass;
-	b->acceleration.x += cos(angle) * force / b->mass;
-	b->acceleration.y += sin(angle) * force / b->mass;
-}
 
 static void RenderLabels(SDL_Renderer *renderer, Body bodies[], Label labels[], size_t count)
 {
@@ -297,8 +207,6 @@ int main()
 
 	SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, RENDERER_FLAGS);
 	SDLPTR(renderer);
-
-	srand(time(NULL));
 
 	MainLoop(renderer);
 

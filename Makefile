@@ -13,7 +13,7 @@ default: $(TARGET)
 all: default
 
 OBJECTS = $(patsubst $(SRCDIR)/%, $(BUILDDIR)/%, $(patsubst %.c, %.o, $(wildcard $(SRCDIR)/*.c)))
-HEADERS = $(patsubst $(SRCDIR)/%, $(BUILDDIR)/%, $(wildcard $(SRCDIR)/*.h))
+HEADERS = $(wildcard $(SRCDIR)/*.h)
 
 $(BUILDDIR)/%.o: $(SRCDIR)/%.c $(HEADERS) $(BUILDDIR)
 	$(CC) $(CFLAGS) -c $< -o $@
