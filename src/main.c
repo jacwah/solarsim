@@ -33,6 +33,7 @@ typedef struct {
 	Vec2d velocity;
 	Vec2d acceleration;
 	double mass;
+	char *name;
 } Body;
 
 typedef struct {
@@ -45,11 +46,13 @@ Body g_solar_system[] = {
 	{
 		.position = { .x = 4.5356e8, .y = 6.9903e8 },
 		.velocity = { .x = -6.5789e0, .y = 1.1177e1 },
-		.mass = 1.9885e30
+		.mass = 1.9885e30,
+		.name = "Sol"
 	}, {
 		.position = { .x = -1.2732e11, .y = -7.9589e10 },
 		.velocity = { .x = 1.5212e4, .y = -2.5423e4 },
-		.mass = 5.9722e24
+		.mass = 5.9722e24,
+		.name = "Tellus"
 	}
 };
 
@@ -200,7 +203,7 @@ int MainLoop(SDL_Renderer *renderer)
 	for (int i = 0; i < body_count; i++) {
 		char buf[32] = "";
 
-		sprintf(buf, "%d", i);
+		sprintf(buf, "%s (%d)", bodies[i].name, i);
 		SDL_Surface *surf = TTF_RenderUTF8_Blended(g_font, buf, text_color);
 		SDLPTR(surf);
 		SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surf);
