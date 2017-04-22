@@ -7,7 +7,7 @@
 #include <time.h>
 #include <float.h>
 
-#define _SDLERR() do { fprintf(stderr, "error: %s\n", SDL_GetError()); return 1; }  while (0)
+#define _SDLERR() do { fprintf(stderr, "error: %s\n", SDL_GetError()); exit(1); }  while (0)
 #define SDLRET(ret_code) do { if (ret_code != 0) { _SDLERR(); } } while (0)
 #define SDLPTR(ptr) do { if (ptr == NULL) { _SDLERR(); } } while (0)
 
@@ -200,7 +200,7 @@ void Body_Randomize(Body *body)
 	body->mass = GaussianNoise(1.0e10, 1.0);
 }
 
-void RenderLabels(SDL_Renderer *renderer, size_t count, Body bodies[], Label labels[])
+void RenderLabels(SDL_Renderer *renderer, Body bodies[], Label labels[], size_t count)
 {
 	for (int i = 0; i < count; i++) {
 		SDL_Rect rect = { .x = PX(bodies[i].position.x) + 10,
@@ -260,17 +260,24 @@ after_loop:
 	free(points);
 }
 
-int MainLoop(SDL_Renderer *renderer)
+void UpdateBodies(Body bodies[], size_t body_count, double delta_time)
 {
-	SDL_Event event;
+	for(int i = 0; i < body_count; i++) {
+		bodies[i].acceleration.x = 0.0;
+		bodies[i].acceleration.y = 0.0;
+	}
 
-	bool exiting = false;
-	bool debug = true;
+	for (int i = 0; i < body_count; i++) {
+		for (int j = i + 1; j < body_count; j++) {
+			Body_ApplyGravity(bodies + i, bodies + j);
+		}
+		Body_ApplyAcceleration(bodies + i, delta_time);
+		Body_ApplyVelocity(bodies + i, delta_time);
+	}
+}
 
-	Body *bodies = g_solar_system;
-	size_t body_count = sizeof(g_solar_system) / sizeof(g_solar_system[0]);
-	Label labels[body_count];
-
+void PrerenderLabels(SDL_Renderer *renderer, Body bodies[], Label labels[], size_t body_count)
+{
 	SDL_Color text_color = {0, 0, 0};
 
 	for (int i = 0; i < body_count; i++) {
@@ -288,6 +295,32 @@ int MainLoop(SDL_Renderer *renderer)
 
 		SDL_FreeSurface(surf);
 	}
+}
+
+void RenderBodies(SDL_Renderer *renderer, Body bodies[], size_t body_count)
+{
+	for (int i = 0; i < body_count; i++) {
+		SDL_Rect rect = {
+			.x = PX(bodies[i].position.x) - BODY_SIZE / 2,
+			.y = PY(bodies[i].position.y) - BODY_SIZE / 2,
+			.w = BODY_SIZE,
+			.h = BODY_SIZE
+		};
+
+		SDL_RenderFillRect(renderer, &rect);
+	}
+}
+
+int MainLoop(SDL_Renderer *renderer)
+{
+	bool exiting = false;
+	bool debug = false;
+
+	Body *bodies = g_solar_system;
+	size_t body_count = sizeof(g_solar_system) / sizeof(g_solar_system[0]);
+	Label labels[body_count];
+
+	PrerenderLabels(renderer, bodies, labels, body_count);
 
 	// Assumes 60 Hz monitor
 	const double frame_length = 1.0 / 60.0;
@@ -297,6 +330,8 @@ int MainLoop(SDL_Renderer *renderer)
 	const double scale_factor = 2.0;
 
 	while (!exiting) {
+		SDL_Event event;
+
 		while (SDL_PollEvent(&event)) {
 			switch (event.type) {
 			case SDL_QUIT:
@@ -324,40 +359,19 @@ int MainLoop(SDL_Renderer *renderer)
 			}
 		}
 
-		for(int i = 0; i < body_count; i++) {
-			bodies[i].acceleration.x = 0.0;
-			bodies[i].acceleration.y = 0.0;
-		}
-
-		for (int i = 0; i < body_count; i++) {
-			for (int j = i + 1; j < body_count; j++) {
-				Body_ApplyGravity(bodies + i, bodies + j);
-			}
-			Body_ApplyAcceleration(bodies + i, delta_time);
-			Body_ApplyVelocity(bodies + i, delta_time);
-		}
+		UpdateBodies(bodies, body_count, delta_time);
 
 		SDL_SetRenderDrawColor(renderer, COLOR_BACKGROUND);
 		SDL_RenderClear(renderer);
 
 		SDL_SetRenderDrawColor(renderer, COLOR_BODY);
-
-		for (int i = 0; i < body_count; i++) {
-			SDL_Rect rect = {
-				.x = PX(bodies[i].position.x) - BODY_SIZE / 2,
-				.y = PY(bodies[i].position.y) - BODY_SIZE / 2,
-				.w = BODY_SIZE,
-				.h = BODY_SIZE
-			};
-
-			SDL_RenderFillRect(renderer, &rect);
-		}
+		RenderBodies(renderer, bodies, body_count);
 
 		if (debug) {
 			RenderDebug(renderer, body_count, bodies);
 		}
 
-		RenderLabels(renderer, body_count, bodies, labels);
+		RenderLabels(renderer, bodies, labels, body_count);
 
 		SDL_RenderPresent(renderer);
 	}
