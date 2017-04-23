@@ -24,10 +24,11 @@
 #define COLOR_DEBUG_ACCELERATION	0xff, 0x00, 0x00, 0xff
 #define COLOR_BODY			0x00, 0x00, 0xff, 0xff
 
-#define PX(x) (g_render_scale * x + SCREEN_SIZE / 2)
-#define PY(y) (SCREEN_SIZE - (g_render_scale * y + SCREEN_SIZE / 2))
+#define PX(c) (g_render_scale * ((c) - g_center_point->x) + SCREEN_SIZE / 2)
+#define PY(c) (SCREEN_SIZE - (g_render_scale * ((c) - g_center_point->y) + SCREEN_SIZE / 2))
 
 double g_render_scale = SCREEN_SIZE / 1.0e13;
+Vec2d *g_center_point = &g_solar_system[0].position;
 
 TTF_Font *g_font = NULL;
 
@@ -120,6 +121,14 @@ static void RenderBodies(SDL_Renderer *renderer, Body bodies[], size_t body_coun
 	}
 }
 
+void SetCenterPoint(Body bodies[], size_t body_count, int body_index)
+{
+	if (0 <= body_index && body_index < body_count) {
+		g_center_point = &bodies[body_index].position;
+		printf("Center point: %s\n", bodies[body_index].name);
+	}
+}
+
 static int MainLoop(SDL_Renderer *renderer)
 {
 	bool exiting = false;
@@ -163,6 +172,14 @@ static int MainLoop(SDL_Renderer *renderer)
 				case SDLK_MINUS:
 					g_render_scale /= scale_factor;
 					break;
+				default:
+					{
+						int sym = event.key.keysym.sym;
+						if (SDLK_0 <= sym && SDLK_9 >= sym) {
+							SetCenterPoint(bodies, body_count, sym - SDLK_0);
+						}
+						break;
+					}
 				}
 				break;
 			}
