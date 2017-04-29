@@ -17,6 +17,7 @@
 #define BODY_SIZE 4
 
 #define WINDOW_TITLE "Solar system simulation | Jacob Wahlgren 2017"
+#define HELP_TEXT "+/- zoom, UP/DOWN control time, D show/hide vectors, 0-9 center body, H show/hide help"
 
 //					R     G     B     A
 #define COLOR_BACKGROUND		0xff, 0xff, 0xff, 0xff
@@ -38,7 +39,7 @@ typedef struct {
 	int height;
 } Label;
 
-static void RenderLabels(SDL_Renderer *renderer, Body bodies[], Label labels[], size_t count)
+static void RenderBodyLabels(SDL_Renderer *renderer, Body bodies[], Label labels[], size_t count)
 {
 	for (int i = 0; i < count; i++) {
 		SDL_Rect rect = { .x = PX(bodies[i].position.x) + 10,
@@ -86,24 +87,25 @@ static void UpdateBodies(Body bodies[], size_t body_count, double delta_time)
 	}
 }
 
-static void PrerenderLabels(SDL_Renderer *renderer, Body bodies[], Label labels[], size_t body_count)
+static void PrerenderLabel(SDL_Renderer *renderer, Label *label, const char *text)
 {
 	SDL_Color text_color = {0, 0, 0};
+	SDL_Surface *surf = TTF_RenderUTF8_Blended(g_font, text, text_color);
+	SDLPTR(surf);
+	SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surf);
+	SDLPTR(texture);
 
+	label->texture = texture;
+	label->width = surf->w;
+	label->height = surf->h;
+
+	SDL_FreeSurface(surf);
+}
+
+static void PrerenderBodyLabels(SDL_Renderer *renderer, Body bodies[], Label labels[], size_t body_count)
+{
 	for (int i = 0; i < body_count; i++) {
-		char buf[32] = "";
-
-		sprintf(buf, "%s", bodies[i].name);
-		SDL_Surface *surf = TTF_RenderUTF8_Blended(g_font, buf, text_color);
-		SDLPTR(surf);
-		SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surf);
-		SDLPTR(texture);
-
-		labels[i].texture = texture;
-		labels[i].width = surf->w;
-		labels[i].height = surf->h;
-
-		SDL_FreeSurface(surf);
+		PrerenderLabel(renderer, labels + i, bodies[i].name);
 	}
 }
 
@@ -133,13 +135,24 @@ static int MainLoop(SDL_Renderer *renderer)
 {
 	bool exiting = false;
 	bool debug = false;
+	bool show_help = true;
 
 	Body *bodies = g_solar_system;
 	size_t body_count = sizeof(g_solar_system) / sizeof(g_solar_system[0]);
-	Label labels[body_count];
+	Label body_labels[body_count];
+	Label help_label;
 
-	PrerenderLabels(renderer, bodies, labels, body_count);
+	PrerenderBodyLabels(renderer, bodies, body_labels, body_count);
+	PrerenderLabel(renderer, &help_label, HELP_TEXT);
 
+	SDL_Rect help_label_rect = {
+		.x = SCREEN_SIZE - help_label.width - 10,
+		.y = SCREEN_SIZE - help_label.height - 10,
+		.w = help_label.width,
+		.h = help_label.height
+	};
+
+	printf("w=%d, h=%d, p=%p\n", help_label.width, help_label.height, help_label.texture);
 	// Assumes 60 Hz monitor
 	const double frame_length = 1.0 / 60.0;
 	// 10 weeks per second
@@ -159,6 +172,9 @@ static int MainLoop(SDL_Renderer *renderer)
 				switch (event.key.keysym.sym) {
 				case SDLK_d:
 					debug = !debug;
+					break;
+				case SDLK_h:
+					show_help = !show_help;
 					break;
 				case SDLK_UP:
 					delta_time *= time_factor;
@@ -197,7 +213,11 @@ static int MainLoop(SDL_Renderer *renderer)
 			RenderDebug(renderer, body_count, bodies);
 		}
 
-		RenderLabels(renderer, bodies, labels, body_count);
+		if (show_help) {
+			SDL_RenderCopy(renderer, help_label.texture, NULL, &help_label_rect);
+		}
+
+		RenderBodyLabels(renderer, bodies, body_labels, body_count);
 
 		SDL_RenderPresent(renderer);
 	}
