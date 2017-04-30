@@ -57,8 +57,8 @@ static void RenderDebug(SDL_Renderer *renderer, size_t count, Body bodies[])
 		SDL_RenderDrawLine(renderer,
 				PX(bodies[i].position.x),
 				PY(bodies[i].position.y),
-				PX(bodies[i].position.x + 1.0e-2 * bodies[i].velocity.x),
-				PY(bodies[i].position.y + 1.0e-2 * bodies[i].velocity.y));
+				PX(bodies[i].position.x + 1.0e8 * bodies[i].velocity.x),
+				PY(bodies[i].position.y + 1.0e8 * bodies[i].velocity.y));
 	}
 
 	SDL_SetRenderDrawColor(renderer, COLOR_DEBUG_ACCELERATION);
@@ -66,8 +66,8 @@ static void RenderDebug(SDL_Renderer *renderer, size_t count, Body bodies[])
 		SDL_RenderDrawLine(renderer,
 				PX(bodies[i].position.x),
 				PY(bodies[i].position.y),
-				PX(bodies[i].position.x + 1.0e4 * bodies[i].acceleration.x),
-				PY(bodies[i].position.y + 1.0e4 * bodies[i].acceleration.y));
+				PX(bodies[i].position.x + 1.0e16 * bodies[i].acceleration.x),
+				PY(bodies[i].position.y + 1.0e16 * bodies[i].acceleration.y));
 	}
 }
 
