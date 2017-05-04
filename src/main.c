@@ -17,7 +17,7 @@
 #define BODY_SIZE 4
 
 #define WINDOW_TITLE "Solar system simulation | Jacob Wahlgren 2017"
-#define HELP_TEXT "+/- zoom, UP/DOWN control time, D show/hide vectors, 0-9 center body, H show/hide help"
+#define HELP_TEXT "+/- zoom, UP/DOWN control time, D show/hide vectors, 0-9 center body, H show/hide"
 
 //					R     G     B     A
 #define COLOR_BACKGROUND		0xff, 0xff, 0xff, 0xff
@@ -131,19 +131,38 @@ void SetCenterPoint(Body bodies[], size_t body_count, int body_index)
 	}
 }
 
+/* Result can only be used until next call! */
+static char *SecondsAsText(double time)
+{
+	static char buf[256];
+	double weeks = time / (60 * 60 * 24 * 7);
+
+	sprintf(buf, "%.1lf weeks per second", weeks);
+
+	return buf;
+}
+
 static int MainLoop(SDL_Renderer *renderer)
 {
 	bool exiting = false;
 	bool debug = false;
-	bool show_help = true;
+	bool show_info = true;
+
+	// Assumes 60 Hz monitor
+	const double frame_length = 1.0 / 60.0;
+	// 8 weeks per second
+	double delta_time = frame_length * 60.0 * 60.0 * 24.0 * 7.0 * 8.0;
+	const double time_factor = 2.0;
+	const double scale_factor = 2.0;
 
 	Body *bodies = g_solar_system;
 	size_t body_count = sizeof(g_solar_system) / sizeof(g_solar_system[0]);
 	Label body_labels[body_count];
-	Label help_label;
+	Label help_label, time_label;
 
 	PrerenderBodyLabels(renderer, bodies, body_labels, body_count);
 	PrerenderLabel(renderer, &help_label, HELP_TEXT);
+	PrerenderLabel(renderer, &time_label, SecondsAsText(delta_time / frame_length));
 
 	SDL_Rect help_label_rect = {
 		.x = SCREEN_SIZE - help_label.width - 10,
@@ -152,13 +171,12 @@ static int MainLoop(SDL_Renderer *renderer)
 		.h = help_label.height
 	};
 
-	printf("w=%d, h=%d, p=%p\n", help_label.width, help_label.height, help_label.texture);
-	// Assumes 60 Hz monitor
-	const double frame_length = 1.0 / 60.0;
-	// 10 weeks per second
-	double delta_time = frame_length * 60.0 * 60.0 * 24.0 * 7.0 * 10.0;
-	const double time_factor = 2.0;
-	const double scale_factor = 2.0;
+	SDL_Rect time_label_rect = {
+		.x = SCREEN_SIZE - time_label.width - 10,
+		.y = SCREEN_SIZE - time_label.height - 25,
+		.w = time_label.width,
+		.h = time_label.height
+	};
 
 	while (!exiting) {
 		SDL_Event event;
@@ -174,13 +192,15 @@ static int MainLoop(SDL_Renderer *renderer)
 					debug = !debug;
 					break;
 				case SDLK_h:
-					show_help = !show_help;
+					show_info = !show_info;
 					break;
 				case SDLK_UP:
 					delta_time *= time_factor;
+					PrerenderLabel(renderer, &time_label, SecondsAsText(delta_time / frame_length));
 					break;
 				case SDLK_DOWN:
 					delta_time /= time_factor;
+					PrerenderLabel(renderer, &time_label, SecondsAsText(delta_time / frame_length));
 					break;
 				case SDLK_PLUS:
 					g_render_scale *= scale_factor;
@@ -213,8 +233,9 @@ static int MainLoop(SDL_Renderer *renderer)
 			RenderDebug(renderer, body_count, bodies);
 		}
 
-		if (show_help) {
+		if (show_info) {
 			SDL_RenderCopy(renderer, help_label.texture, NULL, &help_label_rect);
+			SDL_RenderCopy(renderer, time_label.texture, NULL, &time_label_rect);
 		}
 
 		RenderBodyLabels(renderer, bodies, body_labels, body_count);
