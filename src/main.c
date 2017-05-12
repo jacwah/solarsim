@@ -71,19 +71,27 @@ static void RenderDebug(SDL_Renderer *renderer, size_t count, Body bodies[])
 	}
 }
 
-static void UpdateBodies(Body bodies[], size_t body_count, double delta_time)
+static void UpdateBodies(Body bodies[], size_t body_count, double delta_time, bool orbital_gravity)
 {
 	for(int i = 0; i < body_count; i++) {
 		bodies[i].acceleration.x = 0.0;
 		bodies[i].acceleration.y = 0.0;
 	}
 
-	for (int i = 0; i < body_count; i++) {
-		for (int j = i + 1; j < body_count; j++) {
-			Body_ApplyGravity(bodies + i, bodies + j);
+	if (orbital_gravity) {
+		for (int i = 1; i < body_count; i++) {
+			Body_ApplyOrbitalGravity(bodies + 0, bodies + i);
+			Body_ApplyAcceleration(bodies + i, delta_time);
+			Body_ApplyVelocity(bodies + i, delta_time);
 		}
-		Body_ApplyAcceleration(bodies + i, delta_time);
-		Body_ApplyVelocity(bodies + i, delta_time);
+	} else {
+		for (int i = 0; i < body_count; i++) {
+			for (int j = i + 1; j < body_count; j++) {
+				Body_ApplyGravity(bodies + i, bodies + j);
+			}
+			Body_ApplyAcceleration(bodies + i, delta_time);
+			Body_ApplyVelocity(bodies + i, delta_time);
+		}
 	}
 }
 
@@ -147,6 +155,7 @@ static int MainLoop(SDL_Renderer *renderer)
 	bool exiting = false;
 	bool debug = false;
 	bool show_info = true;
+	bool orbital_gravity = false;
 
 	// Assumes 60 Hz monitor
 	const double frame_length = 1.0 / 60.0;
@@ -194,6 +203,9 @@ static int MainLoop(SDL_Renderer *renderer)
 				case SDLK_h:
 					show_info = !show_info;
 					break;
+				case SDLK_o:
+					orbital_gravity = !orbital_gravity;
+					break;
 				case SDLK_UP:
 					delta_time *= time_factor;
 					PrerenderLabel(renderer, &time_label, SecondsAsText(delta_time / frame_length));
@@ -221,7 +233,7 @@ static int MainLoop(SDL_Renderer *renderer)
 			}
 		}
 
-		UpdateBodies(bodies, body_count, delta_time);
+		UpdateBodies(bodies, body_count, delta_time, orbital_gravity);
 
 		SDL_SetRenderDrawColor(renderer, COLOR_BACKGROUND);
 		SDL_RenderClear(renderer);

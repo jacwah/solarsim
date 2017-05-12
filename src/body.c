@@ -28,3 +28,18 @@ void Body_ApplyGravity(Body *a, Body *b)
 	b->acceleration.y += sin(angle) * force / b->mass;
 }
 
+void Body_ApplyOrbitalGravity(Body *a, Body *sun)
+{
+	double xdelta = a->position.x - sun->position.x;
+	double ydelta = a->position.y - sun->position.y;
+	double dist = hypot(xdelta, ydelta);
+	double angular_velocity = 2 * M_PI / a->orbital_period;
+
+	a->acceleration.x += angular_velocity * angular_velocity * xdelta;
+	a->acceleration.y += angular_velocity * angular_velocity * ydelta;
+	/*double acceleration = angular_velocity * angular_velocity * dist;*/
+	/*double angle = atan2(ydelta, xdelta);*/
+
+	/*a->acceleration.x += cos(angle) * acceleration;*/
+	/*a->acceleration.y += sin(angle) * acceleration;*/
+}
