@@ -16,6 +16,8 @@
 #define SCREEN_SIZE 800
 #define BODY_SIZE 4
 
+#define FONT_PATH "/Library/Fonts/Arial.ttf"
+
 #define WINDOW_TITLE "Solar system simulation | Jacob Wahlgren 2017"
 #define HELP_TEXT "+/- zoom, UP/DOWN control time, D show/hide vectors, 0-9 center body, H show/hide"
 
@@ -255,7 +257,7 @@ int main()
 		return 1;
 	}
 
-	g_font = TTF_OpenFont("/Library/Fonts/Arial.ttf", 12);
+	g_font = TTF_OpenFont(FONT_PATH, 12);
 
 	if (!g_font) {
 		fprintf(stderr, "ttf error: %s\n", TTF_GetError());
