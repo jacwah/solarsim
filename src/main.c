@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include "body.h"
+#include "tracers.h"
 #include "solar_system_data.h"
 
 #define _SDLERR() do { fprintf(stderr, "error: %s\n", SDL_GetError()); exit(1); }  while (0)
@@ -26,6 +27,7 @@
 #define COLOR_DEBUG_VELOCITY		0x00, 0xff, 0x00, 0xff
 #define COLOR_DEBUG_ACCELERATION	0xff, 0x00, 0x00, 0xff
 #define COLOR_BODY			0x00, 0x00, 0xff, 0xff
+#define COLOR_TRACERS			0x00, 0x00, 0x00, 0x00
 
 #define PX(c) (g_render_scale * ((c) - g_center_point->x) + SCREEN_SIZE / 2)
 #define PY(c) (SCREEN_SIZE - (g_render_scale * ((c) - g_center_point->y) + SCREEN_SIZE / 2))
@@ -73,9 +75,9 @@ static void RenderDebug(SDL_Renderer *renderer, size_t count, Body bodies[])
 	}
 }
 
-static void UpdateBodies(Body bodies[], size_t body_count, double delta_time)
+static void UpdateBodies(Body bodies[], Tracers body_tracers[], size_t body_count, double delta_time)
 {
-	for(int i = 0; i < body_count; i++) {
+	for (int i = 0; i < body_count; i++) {
 		bodies[i].acceleration.x = 0.0;
 		bodies[i].acceleration.y = 0.0;
 	}
@@ -86,6 +88,10 @@ static void UpdateBodies(Body bodies[], size_t body_count, double delta_time)
 		}
 		Body_ApplyAcceleration(bodies + i, delta_time);
 		Body_ApplyVelocity(bodies + i, delta_time);
+	}
+
+	for (int i = 1; i < body_count; i++) {
+		Tracers_AddPoint(body_tracers + i - 1, bodies[i].position);
 	}
 }
 
@@ -125,6 +131,22 @@ static void RenderBodies(SDL_Renderer *renderer, Body bodies[], size_t body_coun
 	}
 }
 
+static void RenderTracers(SDL_Renderer *renderer, Tracers *tracers)
+{
+	static SDL_Rect *screen_points = NULL;
+	
+	screen_points = realloc(screen_points, sizeof(SDL_Rect) * tracers->len);
+	for (int i = 0; i < tracers->len; i++) {
+		Vec2d *vec = tracers->head + (i % tracers->size);
+		screen_points[i].x = PX(vec->x);
+		screen_points[i].y = PY(vec->y);
+		screen_points[i].w = 3;
+		screen_points[i].h = 3;
+	}
+
+	SDL_RenderFillRects(renderer, screen_points, tracers->len);
+}
+
 void SetCenterPoint(Body bodies[], size_t body_count, int body_index)
 {
 	if (0 <= body_index && body_index < body_count) {
@@ -158,7 +180,13 @@ static int MainLoop(SDL_Renderer *renderer)
 	const double scale_factor = 2.0;
 
 	Body *bodies = g_solar_system;
-	size_t body_count = sizeof(g_solar_system) / sizeof(g_solar_system[0]);
+	const size_t body_count = sizeof(g_solar_system) / sizeof(g_solar_system[0]);
+	Tracers body_tracers[body_count - 1];
+
+	for (int i = 0; i < body_count - 1; i++) {
+		Tracers_Init(body_tracers + i, 512);
+	}
+
 	Label body_labels[body_count];
 	Label help_label, time_label;
 
@@ -223,10 +251,18 @@ static int MainLoop(SDL_Renderer *renderer)
 			}
 		}
 
-		UpdateBodies(bodies, body_count, delta_time);
+		UpdateBodies(bodies, body_tracers, body_count, delta_time);
 
 		SDL_SetRenderDrawColor(renderer, COLOR_BACKGROUND);
 		SDL_RenderClear(renderer);
+
+		SDL_SetRenderDrawColor(renderer, COLOR_TRACERS);
+		for (int i = 1; i < body_count; i++) {
+			RenderTracers(renderer, body_tracers + i - 1);
+		}
+
+		SDL_SetRenderDrawColor(renderer, COLOR_BODY);
+		RenderBodies(renderer, bodies, body_count);
 
 		SDL_SetRenderDrawColor(renderer, COLOR_BODY);
 		RenderBodies(renderer, bodies, body_count);
